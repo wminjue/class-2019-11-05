@@ -1,0 +1,64 @@
+---
+title: "Class-2019-11-05"
+author: "Minjue Wu"
+date: "11/5/2019"
+output: html_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(infer)
+library(moderndive)
+library(tidyverse)
+
+# Use age and gender to explain rating
+
+lm.obj <- lm(score ~ age + gender, data = evals)
+
+get_regression_table(lm.obj)
+
+
+boot <- evals %>%
+  select(age)%>%
+  rep_sample_n(size = 463, replace = TRUE, reps = 10000) %>% 
+  group_by(replicate) %>%
+  summarize(mean_age = mean(age)) %>%
+  summarize(lower = quantile(mean_age, probs = 0.025), 
+            middle = quantile(mean_age, probs = 0.5),
+            upper = quantile(mean_age, probs = 0.0975)) 
+
+
+# ?pluck
+# ?ungroup
+
+
+ggplot(data = boot, aes(x = mean_age)) + 
+    geom_histogram(bins = 30, binwidth = .25, color = "white") + 
+    labs(title = "Bootstrap Interval of Mean Age Difference Between Treated 
+and Control Commuters",
+         subtitle = "10000 Samples of Size 143",
+         caption = "Data taken from “Causal effect of intergroup contact on exclusionary attitudes” by Ryan Enos",
+         x = "Mean Age Difference",
+         y = "Count")
+
+```
+
+Calculate a confidence interval for the coefficient of age in your model.
+
+```{r}
+evals %>%
+  rep_sample_n(size = 463, replace = T, reps = 10) %>%
+  group_by(replicate) %>%
+  nest() %>%
+  mutate(results = map(data, ~ lm(score ~ age + gender, data = .x))) %>%
+  mutate(coefficients = map(results, ~ coef(.x))) %>%
+  mutate(age_coef = map(coefficients, ~ pluck(.x, "age"))) %>%
+  unnest(age_coef) %>%
+  ungroup() %>%
+  summarize(lower = quantile(age_coef, probs = 0.025), 
+            middle = quantile(age_coef, probs = 0.5),
+            upper = quantile(age_coef, probs = 0.0975)) 
+
+
+```
+
